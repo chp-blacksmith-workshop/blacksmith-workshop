@@ -9,6 +9,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   web:
     name: web (pnpm + Vite + vitest)
@@ -22,6 +26,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -46,6 +51,14 @@ jobs:
 
       - name: Build context
         run: echo "BLACKSMITH-DEMO-MARKER building stats service from a cold start"
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('stats/Cargo.lock') }}
 
       - name: Mount sticky disk for build artifacts
         uses: useblacksmith/stickydisk@v1
@@ -110,6 +123,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -142,7 +156,9 @@ jobs:
         run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Setup Blacksmith Builder
-        uses: useblacksmith/setup-docker-builder@v1
+        uses: useblacksmith/setup-docker-builder@v2
+        with:
+          cache-key: blacksmith-workshop/api/Dockerfile
 
       - name: Build image
         uses: useblacksmith/build-push-action@v2
